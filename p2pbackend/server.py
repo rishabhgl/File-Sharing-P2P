@@ -4,14 +4,13 @@ import asyncio
 from distributor import Sender
 from flask_cors import CORS, cross_origin
 import json
-from utils import get_active_peers
-from download.download import make_download_requests, request_download, stitch_partfiles
+from threading import Thread
 import os
 import signal
 
-from userdetails import get_details, get_ip, set_user_inactive
+from userdetails import get_ip, set_user_availability, get_active_peers
 from collector import setup_recieve_data
-from threading import Thread
+from download.download import make_download_requests, request_download, stitch_partfiles
 from central_reg import MongoWrapper
 
 app = Flask(__name__)
@@ -22,6 +21,45 @@ conf = False
 
 def run_asyncio_loop():
     asyncio.run(setup_recieve_data())
+
+@app.route("/startup", methods=["POST"])
+def setup():
+    global conf
+    print("Sent")
+    if not conf:
+        asyncio_thread = Thread(target=run_asyncio_loop)
+        asyncio_thread.start()
+        conf = True
+        print("Allocated!")
+        print("Making dirs....")
+        set_user_availability(True)
+        dic = {"status": 201, "message": "Setup done"}
+        return jsonify(dic)
+    return jsonify({"status":400, "message": "already done"})
+
+
+@app.route("/deactivate",methods=["PUT"])
+def close():
+    success = set_user_availability(False)
+    if not success:
+        dic = {"status": 500, "message": "Internal Error"}
+        res = jsonify(dic)
+        return res
+    else:
+        res = jsonify({"status": 200, "message": "UPDATED"})
+        return res
+
+@app.route("/update", methods=["PUT"])
+@cross_origin()
+def update_peer():
+    success = set_user_availability(True)
+    if not success:
+        dic = {"status": 500, "message": "Internal Error"}
+        res = jsonify(dic)
+        return res
+    else:
+        res = jsonify({"status": 200, "message": "UPDATED"})
+        return res
 
 
 @app.route('/get_files', methods=["GET"])
@@ -40,29 +78,7 @@ def get_files():
 @app.route('/', methods=["POST"])
 def test():
     print(request.data)
-    print("OKK")
-    return jsonify({"status": 200, "message": "Hello from torent server"})
-
-
-@app.route("/startup", methods=["POST"])
-def setup():
-    global conf
-    print("Sent")
-    if not conf:
-        asyncio_thread = Thread(target=run_asyncio_loop)
-        asyncio_thread.start()
-        conf = True
-        print("Allocated!")
-        print("Making dirs....")
-        dic = {"status": 201, "message": "Setup done"}
-        return jsonify(dic)
-    return jsonify({"status":400, "message": "already done"})
-
-
-@app.route("/deactivate",methods=["PUT"])
-def close():
-    set_user_inactive()
-    return jsonify({"status": 200, "message": "closed"})
+    return jsonify({"status": 200, "message": "Hello from torrent server"})
 
 
 @app.route("/upload", methods=["POST"])
@@ -102,21 +118,6 @@ def request_part():
     return "Success"
 
 
-@app.route("/update", methods=["PUT"])
-@cross_origin()
-def update_peer():
-    print("DETAILS")
-    user_details = get_details()
-    print("User details: ", user_details)
-    if not user_details:
-        dic = {"status": 404, "message": "USER NOT FOUND"}
-        res = jsonify(dic)
-        return res
-    else:
-        dic = {"status": 201, "message": "UPDATED"}
-        res = jsonify(dic)
-        print("OKKK", res)
-        return res
 
 
 # signal.signal(signal.SIGINT, close)

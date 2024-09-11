@@ -129,7 +129,7 @@ def main():
     for part in parts_of_file:
         print(part)
         for user in part['users']:
-            user_ip = mongo.get_user_ip(user)
+            user_ip = mongo.get_user(user)['ip_address']
             user_info = { "offset": part['offset'], "user_ip": user_ip }
             seeder_info += [user_info]
     

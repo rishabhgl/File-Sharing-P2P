@@ -1,4 +1,5 @@
-import pymongo
+from pymongo.mongo_client import MongoClient
+from pymongo.server_api import ServerApi
 from dotenv import load_dotenv
 import os
 
@@ -7,16 +8,14 @@ class MongoWrapper:
     # db_name: File, FileParts, Peers
     def __init__(self):
         load_dotenv()
-        print(os.environ.get("DB_URI"))
         db_uri = os.environ.get("DB_URI")
-        # db_uri = ""
-        self.mongo_cli = pymongo.MongoClient(db_uri)
+        self.mongo_cli = MongoClient(db_uri, server_api = ServerApi('1'))
         self.collections = ["File", "Peer", "Part"]
         self.set_databases()
         self.set_collection()
 
     def set_databases(self):
-        self.primary_db = self.mongo_cli["SeDB"]
+        self.primary_db = self.mongo_cli["FileSharingDB"]
 
     def set_collection(self):
         collection_list = self.primary_db.list_collection_names()
@@ -46,7 +45,7 @@ class MongoWrapper:
         
     def get_peer_data(self, user_id):
         try:
-            peer = self.primary_db["Peer"].find_one({ "User_id": user_id})
+            peer = self.primary_db["Peer"].find_one({"user_id": user_id})
             return peer
         except Exception as e:
             return e
@@ -87,12 +86,13 @@ class MongoWrapper:
         except Exception as e:
             return e
         
-    def get_user_ip(self, user_id):
+    def get_user(self, user_id):
         try:
-            peer = self.primary_db['Peer'].find_one({'User_id': user_id})
-            return peer['IP_Address']
+            peer = self.primary_db['Peer'].find_one({'user_id': user_id})
+            return peer
         except Exception as e:
-            return e    
+            return e
+        
         
     def delete_part(self, file_uid, offset):
         try:
@@ -101,13 +101,3 @@ class MongoWrapper:
         except Exception as e:
             return e
 
-
-# mn = MongoWrapper()
-#
-# mn.add_data_to_collection("File", {"name": "Test file", "size": 50})
-#
-# data = mn.get_collection_data("File")
-#
-# for a in data:
-#     print(a)
-#

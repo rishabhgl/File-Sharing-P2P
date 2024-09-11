@@ -14,7 +14,6 @@ function App() {
 
   const closeBtn = async () => {
       if(!toggleUp){
-          console.log("OKKK")
           axios.put(`${SERVER}/deactivate`)
             .then((res)=>{
                 alert("You are now inactive on the network")
