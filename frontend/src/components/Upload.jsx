@@ -36,7 +36,6 @@ const Upload = () => {
             })
             .catch((err)=>{
                 console.log("Error", err)
-                alert("No Active Peers found!")
                 if(err.status_code == 404){
                     alert("No Active Peers found!")
                 }

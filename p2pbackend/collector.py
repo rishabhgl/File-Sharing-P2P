@@ -7,7 +7,7 @@ import json
 import time
 
 PORT = 8010
-
+device_ip = get_ip()
 
 async def save_data(client):
     loop = asyncio.get_event_loop()
@@ -27,14 +27,14 @@ async def save_data(client):
     except FileExistsError:
         print("Exists...")
 
-    file_content = st['content']
+    file_content = st['content'].encode('utf-8')
     file_content = base64.b64decode(file_content)
     # print("File content: ", file_content)
     try:
         os.mkdir(f'/home/{os.getlogin()}/.localran/{st["original_name"]}-{st["timestamp"]}')
     except FileExistsError:
         print("Exists")
-    with open(f'/home/{os.getlogin()}/.localran/{st["original_name"]}-{st["timestamp"]}/{st["original_name"] + st["part_file_name"] + st["extension"]}', "wb") as file:
+    with open(f'/home/{os.getlogin()}/.localran/{st["original_name"]}-{st["timestamp"]}/{st["part_file_name"] + st["extension"]}', "wb") as file:
         print("WRITING")
         ac = file_content
         file.write(ac)
@@ -44,13 +44,14 @@ async def save_data(client):
 
 async def setup_recieve_data():
     sck = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
-    # print("Upload receive socket..", sck)
     sck.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    print("IP-> ", get_ip(), PORT)
-    sck.bind((get_ip(), PORT))
-    # print("BINDING DONE")
     sck.setblocking(False)
+
+    print("IP-> ", device_ip, PORT)
+    sck.bind((device_ip, PORT))
+    
     sck.listen(8)
+    
     loop = asyncio.get_event_loop()
 
     while True:

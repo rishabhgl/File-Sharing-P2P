@@ -45,12 +45,14 @@ def set_user_availability(is_available):
 def get_active_peers(recv=False):
     reg = central_reg.MongoWrapper()
     peers = reg.get_collection_data("Peer")
+    print(peers)
     li = []
     for p in peers:
         print(p)
         if p["active"] == "True" or p["active"] == True:
             if recv:
-                li.append((p['ip_address'], REC_PORT))
+                li.append(p)
+                li[-1]['address'] = (p['ip_address'], REC_PORT)
             else:
                 li.append((p['ip_address'], DOWN_PORT))
     print("active peers: ", li)
@@ -58,4 +60,4 @@ def get_active_peers(recv=False):
 
 
 if __name__ == "__main__":
-    set_user_availability(True)
+    print(get_active_peers(True))

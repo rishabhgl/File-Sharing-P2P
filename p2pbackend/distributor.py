@@ -1,6 +1,5 @@
 import socket
 import time
-from file_utils import break_file
 import os
 import json
 import hashlib
@@ -8,6 +7,7 @@ import base64
 
 from central_reg import MongoWrapper
 from userdetails import get_ip
+from file_utils import break_file
 
 '''
 Provide addresses in tuple format
@@ -69,39 +69,46 @@ class Sender:
             return zip(ctr, new_peers, parts)
 
     def upload_file(self, file_path, peers):
-        parts = self.break_file(file_path)
-        file_info = os.path.splitext(file_path)
-        filename = file_info[0]
-        if filename.__contains__('/'):
-            filename = filename[filename.rindex('/')+1:]
-        orig_file = filename
-        filename = hashlib.md5(filename.encode('utf-8')).hexdigest()
-        file_meta = {"name": orig_file+file_info[1], "hash": filename, "size": len(parts) * self.CHUNK_SIZE, "type": file_info[1]}
-        file_id = self.db_engine.add_data_to_collection("File", file_meta)
-        print("File Id: ", file_id)
-        timestamp = time.time()
-        for ctr, peer, part in self.populate_peers(peers, parts):
-            sckt = self.setup_listener()
-            print("sending for peer ", peer)
-            meta = {"part_file_name": f'{ctr}.part',
-                    "original_name": orig_file,
-                    "file_id": file_id,
-                    "extension": file_info[1], "content": part,
-                    "offset": ctr, "length": len(parts),
-                    "user_mac": "TBD",
-                    "timestamp": timestamp,
-                    "original_size": len(parts)*self.CHUNK_SIZE}
-            json_meta = json.dumps(meta)
-            self.send_message(sckt, peer, json_meta.encode('utf-8'))
-            sckt.close()
-            print("Sent for ", peer)
-            meta.pop("content")
-            print("Udating registry")
-            self.db_engine.add_data_to_collection('Part', meta)
-            print("Updated Registry")
+        try:
+            parts = self.break_file(file_path)
+            filename, extension = os.path.splitext(file_path)
+
+            if filename.__contains__('/'):
+                filename = filename[filename.rindex('/')+1:]
+
+            filehash = hashlib.md5(filename.encode('utf-8')).hexdigest()
+            timestamp = time.time()
+
+            file_meta = {"name": filename, "hash": filehash, "size": len(parts) * self.CHUNK_SIZE, "type": extension, "total_parts": len(parts), "timestamp": timestamp}
+
+            file_id = self.db_engine.add_data_to_collection("File", file_meta)
+            print("File Id: ", file_id)
+            
+            for ctr, peer, part in self.populate_peers(peers, parts):
+                sckt = self.setup_listener()
+                print("sending for peer ", peer)
+                meta = {"part_file_name": f'{ctr}.part',
+                        "original_name": filename,
+                        "file_id": file_id,
+                        "extension": extension, "content": part,
+                        "offset": ctr, "length": len(parts),
+                        "user_mac": peer['user_id'],
+                        "timestamp": timestamp,
+                        "original_size": len(parts)*self.CHUNK_SIZE}
+                json_meta = json.dumps(meta)
+                self.send_message(sckt, peer['address'], json_meta.encode('utf-8'))
+                sckt.close()
+                print("Sent for ", peer)
+                meta.pop("content")
+                self.db_engine.add_data_to_collection('Part', meta)
+                print("Updated Registry")
+        except Exception as e:
+            print("Unable to upload file!")
+            print(e)
 
 
-# if __name__ == "__main__":
-#     sender = Sender()
-#     peers = ['0.0.0.0:8000']
-#     sender.upload_file('/home/akshat/clg/se_project/File-Sharing-P2P/p2pbackend/o.jpg', peers)
+
+if __name__ == "__main__":
+    sender = Sender()
+    peers = ['0.0.0.0:8000']
+    sender.upload_file('/home/akshat/clg/se_project/File-Sharing-P2P/p2pbackend/o.jpg', peers)

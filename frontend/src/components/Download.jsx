@@ -24,9 +24,8 @@ const Download = () => {
   const [greetMsg, setGreetMsg] = useState("");
   const [name, setName] = useState("");
 
-    const onButtonClick = (hash)=>{
-        console.log(hash)
-        axios.get(`${SERVER}/download/${hash}`)
+    const onButtonClick = (id)=>{
+        axios.get(`${SERVER}/download/${id}`)
             .then((res)=>{console.log(res)})
             .except((err)=>{console.log(err)})
     }
@@ -38,7 +37,7 @@ const Download = () => {
     {data.length > 0 ? (
         data.map((item, index) => (
             <div key={index} className="flex-item">
-                <button className="button" onClick={() => onButtonClick(item.hash)}>{item.name}</button>
+                <button className="button" onClick={() => onButtonClick(item._id)}>{item.name}</button>
             </div>
         ))
       ) : (

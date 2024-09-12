@@ -5,7 +5,6 @@ import os
 
 
 class MongoWrapper:
-    # db_name: File, FileParts, Peers
     def __init__(self):
         load_dotenv()
         db_uri = os.environ.get("DB_URI")
@@ -57,9 +56,9 @@ class MongoWrapper:
         except Exception as e:
             return e
         
-    def get_file_data(self, hash):
+    def get_file_data(self, file_uid):
         try:
-            file = self.primary_db["File"].find_one({ "hash": hash})
+            file = self.primary_db["File"].find_one({"_id": file_uid})
             return file
         except Exception as e:
             return e
@@ -79,9 +78,9 @@ class MongoWrapper:
         except Exception as e:
             return e
         
-    def get_parts_for_file(self, file_uid):
+    def get_parts_for_file(self, hash):
         try:
-            cursor = self.primary_db["Part"].find({"file_id": file_uid})
+            cursor = self.primary_db["Part"].find({"file_id": hash})
             return cursor
         except Exception as e:
             return e
@@ -100,4 +99,15 @@ class MongoWrapper:
             return result
         except Exception as e:
             return e
+        
+    def count_documents(self, collection):
+        try:
+            return self.primary_db[collection].count_documents({})
+        except Exception as e:
+            return e
+        
+if __name__ == "__main__":
+    reg = MongoWrapper()
+    print(reg.count_documents("Part"))
+
 

@@ -1,17 +1,18 @@
 from flask import Flask, jsonify, request
 import subprocess
 import asyncio
-from distributor import Sender
 from flask_cors import CORS, cross_origin
 import json
 from threading import Thread
 import os
 import signal
 
-from userdetails import get_ip, set_user_availability, get_active_peers
+from userdetails import set_user_availability, get_active_peers
 from collector import setup_recieve_data
-from download.download import make_download_requests, request_download, stitch_partfiles
+from download import make_download_requests, request_download
+from distributor import Sender
 from central_reg import MongoWrapper
+from file_utils import stitch_partfiles
 
 app = Flask(__name__)
 cors = CORS(app)
@@ -66,14 +67,7 @@ def update_peer():
 def get_files():
     db = MongoWrapper()
     data = db.get_collection_data('File')
-    print("DATA FOR FILES")
-    df = []
-    for dat in data:
-        print(dat)
-        dat.pop('_id')
-        df.append(dat)
-    print(df)
-    return jsonify({"data":df})
+    return jsonify({"data": data})
 
 @app.route('/', methods=["POST"])
 def test():
@@ -86,13 +80,14 @@ def test():
 def upload_file():
     data = request.data.decode('utf-8').replace("'",'"')
     data = json.loads(data)
+
     peers = get_active_peers(True)
+
     if len(peers) == 0:
         res = jsonify({"message": "No active peers found"})
         res.status_code = 404
         return res
-    # peers = [(get_ip(), 8010)]
-    print(get_ip())
+
     print("PEERS ", peers)
     s = Sender()
     s.upload_file(data['file'], peers)
