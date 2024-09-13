@@ -20,7 +20,6 @@ def get_mac():
     return hostname
 
 def set_user_availability(is_available):
-    print(f"Setting user availibility to {is_available}")
     try:
         
         reg = central_reg.MongoWrapper()        

@@ -31,9 +31,6 @@ def setup():
         asyncio_thread = Thread(target=run_asyncio_loop)
         asyncio_thread.start()
         conf = True
-        print("Allocated!")
-        print("Making dirs....")
-        set_user_availability(True)
         dic = {"status": 201, "message": "Setup done"}
         return jsonify(dic)
     return jsonify({"status":400, "message": "already done"})
@@ -64,9 +61,12 @@ def update_peer():
 
 
 @app.route('/get_files', methods=["GET"])
+@cross_origin()
 def get_files():
     db = MongoWrapper()
-    data = db.get_collection_data('File')
+    data = list(db.get_collection_data('File'))
+    for i in range(len(data)):
+        data[i]['_id'] = str(data[i]['_id'])
     return jsonify({"data": data})
 
 @app.route('/', methods=["POST"])
@@ -88,7 +88,6 @@ def upload_file():
         res.status_code = 404
         return res
 
-    print("PEERS ", peers)
     s = Sender()
     s.upload_file(data['file'], peers)
     dic = {"status": 201, "message": "Uploading file"}
@@ -99,25 +98,23 @@ def upload_file():
 @app.route("/download/<file_uid>", methods=["GET"])
 @cross_origin()
 def download_file(file_uid):
-    print(file_uid)
-    message = make_download_requests(file_uid)
-    stitch_partfiles(file_uid)
-    return message
+    summary = make_download_requests(file_uid)
+    summary = json.loads(summary)
+    if summary['status'] != "Success!":
+        return jsonify({"status": 404, "message": "No active user found!"})
+    stitch_partfiles(summary['file_info'])
+    return jsonify({"status": 200, "message": "Downloaded!"})
 
 @app.route("/download/request", methods=["POST"])
 @cross_origin()
 def request_part():
     data = request.json
     data = json.loads(data)
-    request_download(data['file_uid'], data['seeder_info'])
-    return "Success"
+    if request_download(data['file_info'], data['seeder_info']):
+        return "Success"
+    else:
+        return "Something went wrong"
 
 
-
-
-# signal.signal(signal.SIGINT, close)
 if __name__ == "__main__":
-    # intialize Port
-    # run_asyncio_loop()
-    # print("Upload Receive port setup...")
     app.run(host="0.0.0.0")

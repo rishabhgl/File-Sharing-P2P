@@ -1,5 +1,6 @@
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
+from bson.objectid import ObjectId
 from dotenv import load_dotenv
 import os
 
@@ -42,13 +43,6 @@ class MongoWrapper:
         except Exception:
             return False
         
-    def get_peer_data(self, user_id):
-        try:
-            peer = self.primary_db["Peer"].find_one({"user_id": user_id})
-            return peer
-        except Exception as e:
-            return e
-        
     def get_part_data(self, file_uid, offset):
         try:
             part = self.primary_db["Part"].find_one({ "file_uid": file_uid, "offset": offset})
@@ -58,7 +52,9 @@ class MongoWrapper:
         
     def get_file_data(self, file_uid):
         try:
+            file_uid = ObjectId(file_uid)
             file = self.primary_db["File"].find_one({"_id": file_uid})
+            file['_id'] = str(file['_id'])
             return file
         except Exception as e:
             return e
@@ -78,10 +74,17 @@ class MongoWrapper:
         except Exception as e:
             return e
         
-    def get_parts_for_file(self, hash):
+    def get_parts_for_file(self, file_uid):
         try:
-            cursor = self.primary_db["Part"].find({"file_id": hash})
+            cursor = self.primary_db["Part"].find({"file_id": file_uid})
             return cursor
+        except Exception as e:
+            return e
+        
+    def get_user_if_active(self, user_id):
+        try:
+            peer = self.primary_db['Peer'].find_one({'user_id': user_id, 'active': "True"})
+            return peer
         except Exception as e:
             return e
         

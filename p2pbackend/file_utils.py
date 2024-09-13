@@ -1,7 +1,7 @@
 from dotenv import load_dotenv
 import base64
 import os
-from bson.objectid import ObjectId
+
 
 from central_reg import MongoWrapper
 
@@ -45,12 +45,14 @@ def stitch_file(file_parts):
 def stitch_partfiles(file_info):
     SHARE_PATH = f'/home/{os.getlogin()}/.localran/'
 
-    partspath = os.path.join(SHARE_PATH, f"{file_info['name']}-{file_info['timestamp']}")
+    partspath = os.path.join(SHARE_PATH, f"{file_info['name']}-{file_info['timestamp']}-2")
     file_data = b''
     parts = []
     try:
-        for part in range(file_info['total_parts']):
+        for part in range(int(file_info['total_parts'])):
             partpath = os.path.join(partspath, f"{part}.part{file_info['type']}")
+            if os.path.exists(partpath) == False:
+                raise FileExistsError("Required part does not exist")
             with open(partpath, "rb") as part_desc:
                     part_data = part_desc.read()
                     parts += [part_data]
@@ -72,7 +74,7 @@ def stitch_partfiles(file_info):
     
 if __name__ == "__main__":
     reg = MongoWrapper()
-    file = reg.get_file_data(ObjectId('66e2df96e74ecb5b0c04fac7'))
+    file = reg.get_file_data('66e2df96e74ecb5b0c04fac7')
     print(file)
     stitch_partfiles(file)
 

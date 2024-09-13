@@ -1,91 +1,93 @@
 import socket
 import json
 import os
+import base64
 import requests
-from file_utils import get_config
+
 from central_reg import MongoWrapper
-from file_utils import stitch_file, get_config
-
-SHARE_PATH = f'/home/{os.getlogin()}/.localran/temp'
-
-# try:
-#     os.mkdir(SHARE_PATH)
-# except FileExistsError:
-#     print("Temp download folder already exists!")
 
 def make_download_requests(file_uid):
-    # fetch file_info and seeder_info from database using file uid
-    get_config()
-    mongo = MongoWrapper()
-    file_info = mongo.get_file_data(file_uid)
-    seeders_info = []
-    
-    parts_of_file = mongo.get_parts_for_file(file_info["hash"])
-    
-    for part in parts_of_file:
-        for user in part['users']:
-            user_ip = mongo.get_user(user)['ip_address']
-            user_info = {"offset": part['offset'], "user_ip": user_ip }
-            seeders_info += [user_info]
 
-    '''
-    seeder_info contains the details of the parts and peers that seed them. For now, assume it is an array of objects containing the 
-    following properties:
-    -file_uid
-    -offset
-    -user_ip
+    try:
+        mongo = MongoWrapper()
+        file_info = mongo.get_file_data(file_uid)
+        seeders_info = []
+        
+        parts_of_file = mongo.get_parts_for_file(file_info["_id"])
 
-    and file_info contains :
-    -file_name
-    -file_uid
-    -file_total_parts
-    -file_extension
-    -size
-    '''
+        parts = [0] * file_info['total_parts']
+
+        for part in parts_of_file:
+            offset = part['offset']
+            if parts[offset] == 0:
+                parts[offset] = part
+                parts[offset]['users'] = [part['user_mac']]
+                parts[offset].pop('user_mac')
+            else:
+                parts[offset]['users'].append(part['user_mac'])
+        
+        for part in parts:
+            active_users = 0
+            for user in part['users']:
+                result = mongo.get_user_if_active(user)
+                if result:
+                    user_info = {"offset": part['offset'], "user_ip": result['ip_address']}
+                    active_users += 1
+                    seeders_info += [user_info]
+                    break
+            if active_users == 0:
+                return "Could not find enough active users!"
+            
+    except Exception as e:
+        print(e)
+        return "Internal Error"
 
 
     for seeder_info in seeders_info:
             
-        #Here will start send http request to Flask server to start concurrent downloads with each each seeder. Will have to refactor.
+        #Here will start send http request to Flask server to start concurrent downloads with each each seeder
 
-        request_data = json.dumps({ 'file_uid': file_info['hash'], 'seeder_info': seeder_info})
+        request_data = json.dumps({'file_info': file_info, 'seeder_info': seeder_info})
         # request_data = { 'file_uid': file_info['file_uid'], 'seeder_info': seeder_info}
-        if requests.post("http://127.0.0.1:5000/download/request", json = request_data).text != "Success":
-            return "Something went wrong!"
+
+        response = requests.post("http://127.0.0.1:5000/download/request", json = request_data)
+        print(response.text)
+        if response.text != "Success":
+            return {"status": "Something went wrong!"}
         else:
             pass
             # mongo.update_seeders_post_download(file_info['file_uid'], seeder_info['offset'])
     
-    return "Success!"
+    summary = {'file_info': file_info, "status": "Success!"}
+    return json.dumps(summary)
         
 
-def request_download(fid, seeder):
+def request_download(file_info, seeder):
+    SHARE_PATH = f'/home/{os.getlogin()}/.localran/'
+    savepath = os.path.join(SHARE_PATH, f"{file_info['name']}-{file_info['timestamp']}-2")
 
-    get_config()
+    os.makedirs(savepath, exist_ok=True)
+
     timeout_dur = 15
     python_message = {
-            "operation": "Request download",
-            "file_uid": fid,
+            "operation": "download",
+            "file_info": file_info,
             "offset": seeder['offset']
         }
     
     message = json.dumps(python_message)
     seeder_ip = str(seeder['user_ip'])
-    print(seeder_ip)
-    seeder_port = int(os.environ['U_PORT'])
+    seeder_port = 8010
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.connect((seeder_ip, seeder_port))
-        sock.settimeout(timeout_dur) #Last argument is timeout in seconds.
+        sock.settimeout(timeout_dur) 
         print("Connected to sender!")
         
         sock.sendall(bytes(message, encoding='utf-8'))
         print("Sent request")
         
         try:
-            ack = sock.recv(1024).decode('utf-8')
-            print(ack)
-            
             part = bytearray()
             
             while True:
@@ -93,10 +95,11 @@ def request_download(fid, seeder):
                 data = sock.recv(1024 * 5)
                 
                 if not data:
-                        # part = part.decode('utf-8')
-                        with open(f"{SHARE_PATH}\{python_message['file_uid']}_{seeder['offset']}.txt", "wb+") as file_part:
-                            file_part.write(part)
-                            return True
+                    with open(f"{savepath}/{seeder['offset']}.part{file_info['type']}", "wb+") as file_part:
+                        part = base64.b64decode(part)
+                        file_part.write(part)
+                        print("Part", seeder['offset'], "written!")
+                        return True
                 
                 part.extend(data)
                 
@@ -106,7 +109,6 @@ def request_download(fid, seeder):
     
 
 if __name__ == "__main__":
-    get_config()
     
     file_info = {
         "file_uid": "1023"

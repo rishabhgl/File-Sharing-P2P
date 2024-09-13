@@ -28,14 +28,12 @@ class Sender:
         sckt = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sckt.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sckt.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 1024 * 1024)
-        print("SEOCKER", sckt)
-        return sckt
+        return sckt 
 
     def send_message(self, sckt, client_addr, content):
         if sckt:
             print(client_addr)
             sckt.connect(client_addr)
-            # print("SENDING->", content)
             total_sent = 0
             while total_sent < len(content):
                 sent = sckt.send(content[total_sent:])
@@ -94,12 +92,14 @@ class Sender:
                         "offset": ctr, "length": len(parts),
                         "user_mac": peer['user_id'],
                         "timestamp": timestamp,
-                        "original_size": len(parts)*self.CHUNK_SIZE}
+                        "original_size": len(parts)*self.CHUNK_SIZE,
+                        "operation": "upload"}
                 json_meta = json.dumps(meta)
                 self.send_message(sckt, peer['address'], json_meta.encode('utf-8'))
                 sckt.close()
                 print("Sent for ", peer)
                 meta.pop("content")
+                meta.pop("operation")
                 self.db_engine.add_data_to_collection('Part', meta)
                 print("Updated Registry")
         except Exception as e:

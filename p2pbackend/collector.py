@@ -4,24 +4,8 @@ import asyncio
 import base64
 import os
 import json
-import time
 
-PORT = 8010
-device_ip = get_ip()
-
-async def save_data(client):
-    loop = asyncio.get_event_loop()
-    # request = b""
-    request = await loop.sock_recv(client, 1024*1024)
-    # print("Data received: ", request)
-    req = request.decode('utf-8')
-    # try:
-    st = json.loads(req)
-    # except json.JSONDecodeError:
-    #     print("JSON-> ", req)
-    #     exit()
-    # print("VAVVV", st)
-    # Extract bin string
+def save_data(st):
     try:
         os.mkdir(f'/home/{os.getlogin()}/.localran/')
     except FileExistsError:
@@ -29,7 +13,7 @@ async def save_data(client):
 
     file_content = st['content'].encode('utf-8')
     file_content = base64.b64decode(file_content)
-    # print("File content: ", file_content)
+
     try:
         os.mkdir(f'/home/{os.getlogin()}/.localran/{st["original_name"]}-{st["timestamp"]}')
     except FileExistsError:
@@ -39,6 +23,37 @@ async def save_data(client):
         ac = file_content
         file.write(ac)
     print("RECEIVED")
+
+async def send_data(st, client):
+    part = st['offset']
+    file_info = st['file_info']
+    loop = asyncio.get_event_loop()
+
+    filepath = os.path.join(f"/home/{os.getlogin()}/.localran/", f"{file_info['name']}-{file_info['timestamp']}", f"{part}.part{file_info['type']}")
+
+    if os.path.exists(filepath):
+        with open(filepath, "rb") as partdata:
+            print("Reading part...")
+            data = partdata.read()
+            to_send = base64.b64encode(data)
+            await loop.sock_sendall(client, to_send)
+    else:
+        print("Required part does not exist!")
+    
+
+async def respond_peer(client):
+    loop = asyncio.get_event_loop()
+    # request = b""
+    request = await loop.sock_recv(client, 1024*1024)
+    # print("Data received: ", request)
+    req = request.decode('utf-8')
+    st = json.loads(req)
+
+    if (st['operation'] == "upload"):
+        save_data(st)
+    else:
+        await send_data(st, client)
+    
     client.close()
 
 
@@ -47,7 +62,9 @@ async def setup_recieve_data():
     sck.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     sck.setblocking(False)
 
-    print("IP-> ", device_ip, PORT)
+    PORT = 8010
+    device_ip = get_ip()
+    print(device_ip)
     sck.bind((device_ip, PORT))
     
     sck.listen(8)
@@ -56,7 +73,4 @@ async def setup_recieve_data():
 
     while True:
         client, _ = await loop.sock_accept(sck)
-        print("Listening------")
-        loop.create_task(save_data(client))
-        # data = sck.recv(1024)
-        # print(data)
+        loop.create_task(respond_peer(client))
