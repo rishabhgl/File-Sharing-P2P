@@ -1,17 +1,7 @@
-from dotenv import load_dotenv
 import base64
 import os
 
-
 from central_reg import MongoWrapper
-
-def get_config():
-    try:
-        load_dotenv()
-        return True
-    except Exception:
-        print("Could not load configuration")
-        return False
     
 
 def break_file(filepath, chunk_size):
@@ -35,7 +25,6 @@ def break_file(filepath, chunk_size):
         return parts
 
 
-# Send byte string, to convert utf-8 to string use utf8_str.encode('utf-8')
 def stitch_file(file_parts):
     x = b''
     for part in file_parts:
@@ -72,10 +61,5 @@ def stitch_partfiles(file_info):
         print(e)
         return e
     
-if __name__ == "__main__":
-    reg = MongoWrapper()
-    file = reg.get_file_data('66e2df96e74ecb5b0c04fac7')
-    print(file)
-    stitch_partfiles(file)
 
 

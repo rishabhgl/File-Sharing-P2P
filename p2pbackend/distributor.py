@@ -2,16 +2,10 @@ import socket
 import time
 import os
 import json
-import hashlib
-import base64
 
 from central_reg import MongoWrapper
 from userdetails import get_ip
 from file_utils import break_file
-
-'''
-Provide addresses in tuple format
-'''
 
 
 class Sender:
@@ -74,10 +68,9 @@ class Sender:
             if filename.__contains__('/'):
                 filename = filename[filename.rindex('/')+1:]
 
-            filehash = hashlib.md5(filename.encode('utf-8')).hexdigest()
             timestamp = time.time()
 
-            file_meta = {"name": filename, "hash": filehash, "size": len(parts) * self.CHUNK_SIZE, "type": extension, "total_parts": len(parts), "timestamp": timestamp}
+            file_meta = {"name": filename, "size": len(parts) * self.CHUNK_SIZE, "type": extension, "total_parts": len(parts), "timestamp": timestamp}
 
             file_id = self.db_engine.add_data_to_collection("File", file_meta)
             print("File Id: ", file_id)
@@ -107,8 +100,3 @@ class Sender:
             print(e)
 
 
-
-if __name__ == "__main__":
-    sender = Sender()
-    peers = ['0.0.0.0:8000']
-    sender.upload_file('/home/akshat/clg/se_project/File-Sharing-P2P/p2pbackend/o.jpg', peers)

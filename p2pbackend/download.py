@@ -5,6 +5,7 @@ import base64
 import requests
 
 from central_reg import MongoWrapper
+from userdetails import get_mac
 
 def make_download_requests(file_uid):
 
@@ -40,23 +41,18 @@ def make_download_requests(file_uid):
             
     except Exception as e:
         print(e)
-        return "Internal Error"
+        return "Unable to fetch data!"
 
 
     for seeder_info in seeders_info:
-            
-        #Here will start send http request to Flask server to start concurrent downloads with each each seeder
 
         request_data = json.dumps({'file_info': file_info, 'seeder_info': seeder_info})
-        # request_data = { 'file_uid': file_info['file_uid'], 'seeder_info': seeder_info}
 
         response = requests.post("http://127.0.0.1:5000/download/request", json = request_data)
-        print(response.text)
         if response.text != "Success":
             return {"status": "Something went wrong!"}
         else:
-            pass
-            # mongo.update_seeders_post_download(file_info, seeder_info['offset'])
+            mongo.update_seeders_post_download(file_info, seeder_info['offset'], get_mac())
     
     summary = {'file_info': file_info, "status": "Success!"}
     return json.dumps(summary)
@@ -108,13 +104,6 @@ def request_download(file_info, seeder):
             return False
     
 
-if __name__ == "__main__":
-    
-    file_info = {
-        "file_uid": "1023"
-    }  
-    
-    make_download_requests(file_info['file_uid'])
         
 
 

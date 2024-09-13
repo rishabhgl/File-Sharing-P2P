@@ -4,7 +4,6 @@ from bson.objectid import ObjectId
 from dotenv import load_dotenv
 import os
 
-
 class MongoWrapper:
     def __init__(self):
         load_dotenv()
@@ -34,7 +33,6 @@ class MongoWrapper:
         except Exception:
             return None
         
-    # https://www.w3schools.com/python/python_mongodb_update.asp
     def update_data(self, collection_name, data, updated_data) -> bool:
         dt = {"$set": updated_data}
         try:
@@ -42,13 +40,6 @@ class MongoWrapper:
             return True
         except Exception:
             return False
-        
-    def get_part_data(self, file_uid, offset):
-        try:
-            part = self.primary_db["Part"].find_one({ "file_uid": file_uid, "offset": offset})
-            return part
-        except Exception as e:
-            return e
         
     def get_file_data(self, file_uid):
         try:
@@ -59,18 +50,17 @@ class MongoWrapper:
         except Exception as e:
             return e
         
-    def get_part_seeds(self, file_uid, offset):
+    def update_seeders_post_download(self, file_info, offset, user):
         try:
-            part = self.primary_db["Part"].find_one({ "file_uid": file_uid, "offset": offset})
-            return part['users']
-        except Exception as e:
-            return e
-        
-    def update_seeders_post_download(self, file_uid, offset):
-        try:
-            users = self.get_part_seeds(file_uid, offset)
-            users += [os.environ['USER_ID']]
-            self.update_data('Part', { 'file_uid': file_uid, 'offset': offset }, {'users': users})
+            meta = {"part_file_name": f'{offset}.part',
+                        "original_name": file_info['name'],
+                        "file_id": file_info['_id'],
+                        "extension": file_info['type'],
+                        "offset": offset, "length": file_info['total_parts'],
+                        "user_mac": user,
+                        "timestamp": file_info['timestamp'],
+                        "original_size": file_info['size']}
+            self.add_data_to_collection('Part', meta)
         except Exception as e:
             return e
         
@@ -109,8 +99,13 @@ class MongoWrapper:
         except Exception as e:
             return e
         
-if __name__ == "__main__":
-    reg = MongoWrapper()
-    print(reg.count_documents("Part"))
+    def delete_database(self):
+        try:
+            self.primary_db['Peer'].delete_many({})
+            self.primary_db['Part'].delete_many({})
+            self.primary_db['File'].delete_many({})
+        except Exception as e:
+            return e
+        
 
 

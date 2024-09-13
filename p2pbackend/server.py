@@ -1,11 +1,9 @@
 from flask import Flask, jsonify, request
-import subprocess
 import asyncio
+import atexit
 from flask_cors import CORS, cross_origin
 import json
 from threading import Thread
-import os
-import signal
 
 from userdetails import set_user_availability, get_active_peers
 from collector import setup_recieve_data
@@ -93,7 +91,6 @@ def upload_file():
     response = jsonify(dic)
     return response
 
-
 @app.route("/download/<file_uid>", methods=["GET"])
 @cross_origin()
 def download_file(file_uid):
@@ -113,7 +110,16 @@ def request_part():
         return "Success"
     else:
         return "Something went wrong"
+    
 
+def clean_shutdown(dev=False):
+    reg = MongoWrapper()
+    if dev:
+        reg.delete_database()
+    else:
+        set_user_availability(False)
+
+atexit.register(clean_shutdown, dev=True)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port = 5000)

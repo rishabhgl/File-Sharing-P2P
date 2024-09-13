@@ -1,9 +1,10 @@
-from userdetails import get_ip
 import socket
 import asyncio
 import base64
 import os
 import json
+
+from userdetails import get_ip
 
 def save_data(st):
     try:
@@ -43,9 +44,9 @@ async def send_data(st, client):
 
 async def respond_peer(client):
     loop = asyncio.get_event_loop()
-    # request = b""
+
     request = await loop.sock_recv(client, 1024*1024)
-    # print("Data received: ", request)
+
     req = request.decode('utf-8')
     st = json.loads(req)
 
