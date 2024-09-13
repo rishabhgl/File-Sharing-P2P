@@ -56,7 +56,7 @@ def make_download_requests(file_uid):
             return {"status": "Something went wrong!"}
         else:
             pass
-            # mongo.update_seeders_post_download(file_info['file_uid'], seeder_info['offset'])
+            # mongo.update_seeders_post_download(file_info, seeder_info['offset'])
     
     summary = {'file_info': file_info, "status": "Success!"}
     return json.dumps(summary)

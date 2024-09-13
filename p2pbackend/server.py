@@ -26,7 +26,6 @@ def run_asyncio_loop():
 @app.route("/startup", methods=["POST"])
 def setup():
     global conf
-    print("Sent")
     if not conf:
         asyncio_thread = Thread(target=run_asyncio_loop)
         asyncio_thread.start()
@@ -117,4 +116,4 @@ def request_part():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0")
+    app.run(host="0.0.0.0", port = 5000)
